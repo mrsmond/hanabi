@@ -1,5 +1,5 @@
 import unittest
-from hanabi_old import *
+from hanabi import *
 import random
 
 class PlayMoveTest(unittest.TestCase):

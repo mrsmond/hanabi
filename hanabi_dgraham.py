@@ -1,4 +1,4 @@
-from hanabi_old import *
+from hanabi import *
 from itertools import chain, repeat
 from operator import itemgetter
 
@@ -170,9 +170,10 @@ def play_move(game, current_player, memory, user_args):
     # easier to debug
     return m
 
-# Iterate the algorithms to compare
-for i in range(NUM_ALGORITHMS):
-    print "For algorithm %0d:" % i
-    play(100, 3, play_move, {"algorithm": i}, load_state = True)
-    print "-" * 80
+if __name__ == "__main__":
+    # Iterate the algorithms to compare
+    for i in range(NUM_ALGORITHMS):
+        print "For algorithm %0d:" % i
+        play(100, 3, play_move, {"algorithm": i}, load_state = True)
+        print "-" * 80
 
