@@ -43,7 +43,7 @@ def mmm(l, n):
     """Return the min, mean, and max from the values in `l' based on a
     population size of `n'."""
     return (min(l), float(sum(l))/n, max(l))
-    
+
 def create_new_deck():
     """Returns all cards shuffled"""
     cards = [(c, v) for c in COLOURS for v in VALUES for i in xrange(VALUES_COUNT[v - 1])]
@@ -78,7 +78,7 @@ def card_str(c, print_card_id = False):
 
 def hand_str(h, print_card_id = False):
     return ", ".join([card_str(c, print_card_id) for c in h])
-    
+
 def sort_by_colour(d, reverse = False):
     d1 = defaultdict(list)
     d2 = {}
@@ -104,6 +104,12 @@ def hand_has_colour(hand, colour):
 
 def hand_has_value(hand, value):
     return any([(card[1] == value) for card in hand])
+
+def colours_in_hand(hand):
+    return list(set([card[0] for card in hand]))
+
+def values_in_hand(hand):
+    return list(set([card[1] for card in hand]))
 
 def get_card_ids_for_colour(hand, colour):
     return [card[2] for card in hand if card[0] == colour]
@@ -138,7 +144,7 @@ def print_moves(moves):
         print "<move number>: <from player ID> -> <move>"
     for i, m in enumerate(moves):
         print "%0d: P%0d -> %s" % (i, m[0], m[1])
-    
+
 def print_game(g, current_player, print_card_id):
     """Print out each players hand, hiding the current player's hand
     unless `current_player' is -1. Then print out the cards played,
@@ -167,7 +173,7 @@ def print_game(g, current_player, print_card_id):
             print "%s: %s" % (COLOURS_SHORT[c], played_sorted[c][0])
         else:
             print "%s: ." % COLOURS_SHORT[c]
-
+    
     print
     print "Discarded:"
     discarded_sorted = sort_by_colour(g["discarded"])
@@ -181,7 +187,7 @@ def print_game(g, current_player, print_card_id):
     print "Deck: %d remaining" % (len(g["deck"]))
     print "Lives: %d" % g["lives"]
     print "Clues: %d" % g["clues"]
-        
+
 def game_finished(game, current_player, final_player):
     return (game["lives"] <= 0) or \
         ((len(game["deck"]) <= 0) and (current_player == final_player))
@@ -220,7 +226,7 @@ def valid_move(g, p, m):
         if not d in [c[2] for c in g["players"][p]]:
             return (False, "discard or play move data card ID is not in the player's hand")
     return (True, "")
-        
+
 def check_play_move_funcs(num_players, play_move_func):
     play_move_per_player = {}
     player_ids = range(num_players)
@@ -530,7 +536,7 @@ def play_move_manual(game, current_player, memory, user_args):
         return interp.move
     else:
         sys.exit()
-    
+
 def create_random_clue(game, current_player, method = 0):
     # Make sure it is a valid clue
     pid = random.choice([pid for pid in game["players"].keys() if pid != current_player])
@@ -547,7 +553,6 @@ def create_random_clue(game, current_player, method = 0):
 
     return {"type": "clue",
             "data": (pid, clue_data)}
-    
 
 def play_move_random(game, current_player, memory, user_args):
     clue_method = 0
@@ -556,7 +561,7 @@ def play_move_random(game, current_player, memory, user_args):
             random.seed(user_args["seed"])
         if "clue_method" in user_args:
             clue_method = user_args["clue_method"]
-        
+    
     my_hand = game["players"][current_player]
 
     if game["clues"] > 0:
