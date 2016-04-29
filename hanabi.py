@@ -248,6 +248,67 @@ def check_play_move_funcs(num_players, play_move_func):
         sys.exit("Error: `play_move_func' must be a dictionary or a function.")
 
     return play_move_per_player
+
+def play_one_turn(g, current_player, play_move, play_move_func_args, memory):
+    # Replace the current player's hand from the game state given to
+    # her with just the card IDs
+    new_g = deepcopy(g)   # Use deep copy because of nested data structures
+    current_players_hand = g["players"][current_player]
+    new_g["players"][current_player] = [c[2] for c in current_players_hand]
+    # And don't let the player see the deck!
+    new_g["deck"] = []
+    move = play_move(new_g,
+                     current_player,
+                     memory,
+                     play_move_func_args)
+
+    (is_valid_move, error_str) = valid_move(g, current_player, move)
+    if not is_valid_move:
+        print "Error %s was not a valid move by player %d because '%s'." % (move, current_player, error_str)
+        print "Game state:"
+        print_game(g, -1, True)
+        print "Moves:"
+        print_moves(g["moves"])
+        sys.exit()
+
+    if move["type"] is "clue":
+        g["clues"] -= 1
+        # Add the card IDs for the clue - the user doesn't have to do this
+        to_player = move["data"][0]
+        clue_type = move["data"][1]
+        move["data"] = (to_player, clue_type, get_card_ids(g["players"][to_player], clue_type))
+    elif move["type"] is "discard":
+        card = [(i, c) for i, c in enumerate(current_players_hand) if c[2] == move["data"]]
+        assert(len(card) == 1)
+        current_players_hand.pop(card[0][0])
+        card = card[0][1]
+        g["discarded"].append(card)
+        # Only pick up if there are cards remaining
+        if len(g["deck"]) > 0:
+            current_players_hand.append(g["deck"].pop())
+            g["clues"] += 1
+    else:
+        # Played
+        card = [(i, c) for i, c in enumerate(current_players_hand) if c[2] == move["data"]]
+        assert(len(card) == 1)
+        current_players_hand.pop(card[0][0])
+        card = card[0][1]
+        if playable(g, card):
+            g["played"].append(card)
+            # Extra clue on completing a colour set
+            if card[1] == 5:
+                g["clues"] += 1
+        else:
+            g["lives"] -= 1
+            g["discarded"].append(card)
+            # Only pick up if there are cards remaining
+        if len(g["deck"]) > 0:
+            current_players_hand.append(g["deck"].pop())
+
+    g["moves"].append((current_player, move))
+
+    return g
+
     
 def play_one_game(num_players, play_move_per_player, play_move_func_args):
     g = create_new_game(num_players)
@@ -256,7 +317,7 @@ def play_one_game(num_players, play_move_per_player, play_move_func_args):
     # Always play from player 0 in ascending order
     player_order = itertools.cycle(sorted(g["players"].keys()))
     # Doesn't matter if the same player always goes first
-    current_player = next(player_order)
+    previous_player, current_player = None, next(player_order)
     final_player = None
     final_round = False
     # Each memory needs to be something so that a reference is passed
@@ -269,67 +330,16 @@ def play_one_game(num_players, play_move_per_player, play_move_func_args):
     while not game_finished(g, current_player, final_player):
         # Assign the final player here so she gets a final move
         if len(g["deck"]) <= 0 and not final_round:
-            final_player = current_player
+            final_player = previous_player
             final_round = True
 
-        current_player = next(player_order)   #TODO: This gets the next player 1 iso 0
-    
-        # Replace the current player's hand from the game state given to
-        # her with just the card IDs
-        new_g = deepcopy(g)   # Use deep copy because of nested data structures
-        current_players_hand = g["players"][current_player]
-        new_g["players"][current_player] = [c[2] for c in current_players_hand]
-        # And don't let the player see the deck!
-        new_g["deck"] = []
-        move = play_move_per_player[current_player](new_g,
-                                                    current_player,
-                                                    memory[current_player],
-                                                    play_move_func_args)
-
-        (is_valid_move, error_str) = valid_move(g, current_player, move)
-        if not is_valid_move:
-            print "Error %s was not a valid move by player %d because '%s'." % (move, current_player, error_str)
-            print "Game state:"
-            print_game(g, -1, True)
-            print "Moves:"
-            print_moves(g["moves"])
-            sys.exit()
-
-        if move["type"] is "clue":
-            g["clues"] -= 1
-            # Add the card IDs for the clue - the user doesn't have to do this
-            to_player = move["data"][0]
-            clue_type = move["data"][1]
-            move["data"] = (to_player, clue_type, get_card_ids(g["players"][to_player], clue_type))
-        elif move["type"] is "discard":
-            card = [(i, c) for i, c in enumerate(current_players_hand) if c[2] == move["data"]]
-            assert(len(card) == 1)
-            current_players_hand.pop(card[0][0])
-            card = card[0][1]
-            g["discarded"].append(card)
-            # Only pick up if there are cards remaining
-            if len(g["deck"]) > 0:
-                current_players_hand.append(g["deck"].pop())
-            g["clues"] += 1
-        else:
-            # Played
-            card = [(i, c) for i, c in enumerate(current_players_hand) if c[2] == move["data"]]
-            assert(len(card) == 1)
-            current_players_hand.pop(card[0][0])
-            card = card[0][1]
-            if playable(g, card):
-                g["played"].append(card)
-                # Extra clue on completing a colour set
-                if card[1] == 5:
-                    g["clues"] += 1
-            else:
-                g["lives"] -= 1
-                g["discarded"].append(card)
-            # Only pick up if there are cards remaining
-            if len(g["deck"]) > 0:
-                current_players_hand.append(g["deck"].pop())
-
-        g["moves"].append((current_player, move))
+        g = play_one_turn(g,
+                          current_player,
+                          play_move_per_player[current_player],
+                          play_move_func_args,
+                          memory[current_player])
+        
+        previous_player, current_player = current_player, next(player_order)
 
     return g
 
