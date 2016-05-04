@@ -63,6 +63,7 @@ def create_new_game(num_players):
         del deck[0:hc]
 
     return {"players": players,
+            "current_player": None,
             "deck": deck,
             "played": [],
             "discarded": [],
@@ -324,6 +325,7 @@ def play_one_game(num_players, play_move_per_player, play_move_func_args):
     player_order = itertools.cycle(sorted(g["players"].keys()))
     # Doesn't matter if the same player always goes first
     previous_player, current_player = None, next(player_order)
+    g["current_player"] = current_player
     final_player = None
     final_round = False
     # Each memory needs to be something so that a reference is passed
