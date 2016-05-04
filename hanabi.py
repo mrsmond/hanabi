@@ -256,14 +256,17 @@ def check_play_move_funcs(num_players, play_move_func):
 
     return play_move_per_player
 
-def play_one_turn(g, current_player, play_move, play_move_func_args, memory):
-    # Replace the current player's hand from the game state given to
-    # her with just the card IDs
-    new_g = deepcopy(g)   # Use deep copy because of nested data structures
+def play_one_turn(g, current_player, play_move, play_move_func_args, memory, obfuscate_game):
+    # Use deep copy because of nested data structures
+    new_g = deepcopy(g)
     current_players_hand = g["players"][current_player]
-    new_g["players"][current_player] = [c[2] for c in current_players_hand]
-    # And don't let the player see the deck!
-    new_g["deck"] = []
+    if obfuscate_game:
+        # Replace the current player's hand from the game state given
+        # to her with just the card IDs
+        new_g["players"][current_player] = [c[2] for c in current_players_hand]
+        # And don't let the player see the deck!
+        new_g["deck"] = []
+        
     move = play_move(new_g,
                      current_player,
                      memory,
@@ -317,7 +320,7 @@ def play_one_turn(g, current_player, play_move, play_move_func_args, memory):
     return g
 
     
-def play_one_game(num_players, play_move_per_player, play_move_func_args):
+def play_one_game(num_players, play_move_per_player, play_move_func_args, obfuscate_game = True):
     g = create_new_game(num_players)
 
     # Initial set up
@@ -345,13 +348,15 @@ def play_one_game(num_players, play_move_per_player, play_move_func_args):
                           current_player,
                           play_move_per_player[current_player],
                           play_move_func_args,
-                          memory[current_player])
+                          memory[current_player],
+                          obfuscate_game)
         
         previous_player, current_player = current_player, next(player_order)
+        g["current_player"] = current_player
 
     return g
 
-def play(num_games, num_players, play_move_func, play_move_func_args = {}, load_state = False):
+def play(num_games, num_players, play_move_func, play_move_func_args = {}, load_state = False, obfuscate_game = True):
     """Call this when you are ready to play, it is the main
     loop. `play_move_func' is either one function that gets called for
     every player, or a dictionary mapping the player ID (starting from
@@ -376,6 +381,10 @@ def play(num_games, num_players, play_move_func, play_move_func_args = {}, load_
     which the user can put in what they want. This is only given to
     the same player.
 
+    `obfuscate_game' means that the player will receive the same level
+    of knowledge as they would in a real game, i.e. they won't see
+    their own cards nor will they see the deck. Set this to False when
+    you need to full state for simulating games, but don't cheat!
     """
     # Check if this is a re-run first
     if load_state:
@@ -394,7 +403,7 @@ def play(num_games, num_players, play_move_func, play_move_func_args = {}, load_
 
     stats = []
     for i in xrange(num_games):
-        g = play_one_game(num_players, play_move_per_player, play_move_func_args)
+        g = play_one_game(num_players, play_move_per_player, play_move_func_args, obfuscate_game)
         stats.append((g["lives"] > 0, score(g), len(g["moves"]), g["clues"], g["lives"]))
 
     # Lost games are those where are lives are lost
