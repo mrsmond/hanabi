@@ -139,6 +139,12 @@ def get_player_order(game, current_player):
 def score(game):
     return sum([c[1] for c in game["played"]])
 
+def have_won(game):
+    return (score(game) == MAX_SCORE)
+
+def have_lost(game):
+    return (g["lives"] <= 0)
+
 def print_moves(moves):
     if len(moves):
         print "<move number>: <from player ID> -> <move>"
