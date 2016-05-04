@@ -13,7 +13,7 @@ COLOURS_SHORT = dict(zip(COLOURS, ["B", "G", "A", "R", "Y", "W"]))
 # The number of each face value, in value order
 VALUES_COUNT = (3, 2, 2, 2, 1)
 # The number of cards dealt depending on the number of players
-HAND_COUNT = {3: 5, 4: 5, 5: 4}
+HAND_COUNT = {2: 5, 3: 5, 4: 4, 5: 4}
 INITIAL_LIVES = 3
 INITIAL_CLUES = 8
 # cards need IDs so that they can be identified by players for playing a move.
@@ -403,7 +403,7 @@ def play(num_games, num_players, play_move_func, play_move_func_args = {}, load_
     won = len(won_games)
     finished = len(finished_games)
     lost = num_games - won - finished
-    print "For %d game%s, stats:" % (num_games, ("s" if num_games > 1 else ""))
+    print "For %d game%s with %d players, stats:" % (num_games, ("s" if num_games > 1 else ""), num_players)
     print "\tWon: %d (%.2f%%)" % (won, pct(won, num_games))
     print "\tFinished: %d (%.2f%%)" % (finished, pct(finished, num_games))
     print "\tLost: %d (%.2f%%)" % (lost, pct(lost, num_games))
