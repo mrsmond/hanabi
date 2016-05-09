@@ -65,6 +65,7 @@ def create_new_game(num_players):
     return {"players": players,
             "current_player": None,
             "deck": deck,
+            "deck_len": len(deck),
             "played": [],
             "discarded": [],
             "lives": INITIAL_LIVES,
@@ -196,13 +197,13 @@ def print_game(g, current_player, print_card_id):
             print "%s: ." % COLOURS_SHORT[c]
     
     print
-    print "Deck: %d remaining" % (len(g["deck"]))
+    print "Deck: %d remaining" % (g["deck_len"])
     print "Lives: %d" % g["lives"]
     print "Clues: %d" % g["clues"]
 
 def game_finished(game, current_player, final_player):
     return (game["lives"] <= 0) or \
-        ((len(game["deck"]) <= 0) and (current_player == final_player))
+        ((game["deck_len"] <= 0) and (current_player == final_player))
 
 def valid_move(g, p, m):
     if not isinstance(m, dict):
@@ -299,7 +300,7 @@ def play_one_turn(g, current_player, play_move, play_move_func_args, memory, obf
         card = card[0][1]
         g["discarded"].append(card)
         # Only pick up if there are cards remaining
-        if len(g["deck"]) > 0:
+        if g["deck_len"] > 0:
             current_players_hand.append(g["deck"].pop())
             g["clues"] += 1
     else:
@@ -317,14 +318,14 @@ def play_one_turn(g, current_player, play_move, play_move_func_args, memory, obf
             g["lives"] -= 1
             g["discarded"].append(card)
             # Only pick up if there are cards remaining
-        if len(g["deck"]) > 0:
+        if g["deck_len"] > 0:
             current_players_hand.append(g["deck"].pop())
 
     g["moves"].append((current_player, move))
-
+    g["deck_len"] = len(g["deck"])
+    
     return g
 
-    
 def play_one_game(num_players, play_move_per_player, play_move_func_args, obfuscate_game = True):
     g = create_new_game(num_players)
 
@@ -345,7 +346,7 @@ def play_one_game(num_players, play_move_per_player, play_move_func_args, obfusc
     # Main loop
     while not game_finished(g, current_player, final_player):
         # Assign the final player here so she gets a final move
-        if len(g["deck"]) <= 0 and not final_round:
+        if g["deck_len"] <= 0 and not final_round:
             final_player = previous_player
             final_round = True
 
