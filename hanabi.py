@@ -168,7 +168,12 @@ def print_game(g, current_player, print_card_id):
             else:
                 print "P%d: %s" % (pid, ", ".join(["%d" % card[2] for card in hand]))
         else:
-            print "P%d: %s" % (pid, hand_str(hand, print_card_id))
+            # Unless it already has been obfuscated (i.e. called from
+            # within a user's function
+            if isinstance(hand[0], int):
+                print "P%d: %s" % (pid, ", ".join(["%d" % id for id in hand]))
+            else:
+                print "P%d: %s" % (pid, hand_str(hand, print_card_id))
 
     print
 
