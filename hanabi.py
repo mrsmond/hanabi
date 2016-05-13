@@ -90,22 +90,46 @@ def sort_by_colour(d, reverse = False):
         d2[colour] = sorted(cards, reverse = reverse)
     return d2
 
-def playable(game, card):
+def playable_value(game, colour):
+    """Return the value that is playable for the `colour' or None if the
+    `colour' is complete."""
     played_sorted = sort_by_colour(game["played"], True)
-    if not card[0] in played_sorted:
-        return (card[1] == 1)
-    played_colours = played_sorted[card[0]]
-    if played_colours[0] == 5:
-        return False
-    if card[1] == (played_colours[0] + 1):
+    # First value if no cards of the colour have been played
+    if not colour in played_sorted:
+        return VALUES[0]
+    played_colours = played_sorted[colour]
+    # Check if that colour is complete
+    if played_colours[0] >= VALUES[-1]:
+        return None
+    # Otherwise return the next value
+    return played_colours[0] + 1
+
+def playable(game, card):
+    return (card[1] == playable_value(game, card[0]))
+
+def discardable(game, card):
+    # First look at whether the card has already been played
+    if hand_has(game["played"], card):
         return True
-    return False
+    
+    # Then see if a colour is dead by looking to see if all cards
+    # of the value that is playable have been discarded
+    the_playable_value = playable_value(game, card[0])
+
+    # Don't need to pass ID
+    return (hand_has(game["discarded"], (card[0], the_playable_value)) >= VALUES_COUNT[the_playable_value])
+
+def hand_has(hand, other_card):
+    """Return the number of times `other_card' is in the `hand'."""
+    return sum([((card[0] == other_card[0]) and (card[1] == other_card[1])) for card in hand])
 
 def hand_has_colour(hand, colour):
-    return any([(card[0] == colour) for card in hand])
+    """Return the number of times `colour' is in the `hand'."""
+    return sum([(card[0] == colour) for card in hand])
 
 def hand_has_value(hand, value):
-    return any([(card[1] == value) for card in hand])
+    """Return the number of times `value' is in the `hand'."""
+    return sum([(card[1] == value) for card in hand])
 
 def colours_in_hand(hand):
     return list(set([card[0] for card in hand]))
