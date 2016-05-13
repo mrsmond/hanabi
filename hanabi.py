@@ -6,6 +6,7 @@ import cPickle as pickle
 import itertools
 from collections import defaultdict
 from copy import deepcopy
+from itertools import chain
 
 VALUES = range(1, 6)
 COLOURS = ("Blue", "Green", "Rainbow", "Red", "Yellow", "White")
@@ -162,6 +163,12 @@ def get_player_order(game, current_player):
     # is the last in the list, the first expression returns an empty
     # list
     return pids[(current_player + 1)%(length + 1):length] + pids[0:current_player]
+
+def cards_given_clue(game, player):
+    """Return the card IDs for which the `player' was given clues about."""
+    clues = [m for from_player, m in game["moves"] if m["type"] == "clue"]
+    # Flatten
+    return list(chain.from_iterable([clue["data"][2] for clue in clues if clue["data"][0] == player]))
 
 def score(game):
     return sum([c[1] for c in game["played"]])

@@ -273,7 +273,8 @@ def play_move(game, current_player, memory, user_args):
             my_discardable[id] = (len(l), len(possible_cards), float(len(l)) / len(possible_cards), l)
 
     # Find if any are a dead certain
-    definitely_playable = [id for id, data in my_playable.iteritems() if data[0] == data[1]]
+    definitely_playable = [id for id, data in my_playable.iteritems() \
+                           if (data[0] == data[1]) or (id in cards_given_clue(game, current_player))]
     
     definitely_discardable = [id for id, data in my_discardable.iteritems() if data[0] == data[1]]
 
@@ -297,7 +298,8 @@ def play_move(game, current_player, memory, user_args):
                 if clue_algorithm == 1:
                     # Give a clue to the first playable card
                     (player, card) = other_players_playable_cards_f[0]
-                    clue_data = random.choice(card[0:1])
+                    #clue_data = random.choice(card[0:1])
+                    clue_data = card[1]
                     m = {"type": "clue", "data": (player, clue_data)}
                 elif clue_algorithm == 2:
                     # Find the first instance of the lowest value (x[1][1] is the value)
