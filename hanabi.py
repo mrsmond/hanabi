@@ -10,8 +10,9 @@ from copy import deepcopy
 VALUES = range(1, 6)
 COLOURS = ("Blue", "Green", "Rainbow", "Red", "Yellow", "White")
 COLOURS_SHORT = dict(zip(COLOURS, ["B", "G", "A", "R", "Y", "W"]))
-# The number of each face value, in value order
-VALUES_COUNT = (3, 2, 2, 2, 1)
+# The number of each face value, in value order (pad a 0 so that it is
+# indexable by value)
+VALUES_COUNT = (0, 3, 2, 2, 2, 1)
 # The number of cards dealt depending on the number of players
 HAND_COUNT = {2: 5, 3: 5, 4: 4, 5: 4}
 INITIAL_LIVES = 3
@@ -46,7 +47,7 @@ def mmm(l, n):
 
 def create_new_deck():
     """Returns all cards shuffled"""
-    cards = [(c, v) for c in COLOURS for v in VALUES for i in xrange(VALUES_COUNT[v - 1])]
+    cards = [(c, v) for c in COLOURS for v in VALUES for i in xrange(VALUES_COUNT[v])]
     random.shuffle(cards)
     cards = [(c[0], c[1], id) for id, c in enumerate(cards)]
     return cards

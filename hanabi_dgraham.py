@@ -7,7 +7,7 @@ from copy import deepcopy
 
 
 FULL_SET = [(c, v) for c in COLOURS for v in VALUES]
-CARDS_PER_VALUE = [v for v in VALUES for i in xrange(VALUES_COUNT[v - 1])]
+CARDS_PER_VALUE = [v for v in VALUES for i in xrange(VALUES_COUNT[v])]
 # Include the default random algorithm
 NUM_CLUE_ALGORITHMS = 4
 NUM_DISCARD_ALGORITHMS = 2
