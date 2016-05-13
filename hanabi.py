@@ -171,7 +171,7 @@ def cards_given_clue(game, player):
     return list(chain.from_iterable([clue["data"][2] for clue in clues if clue["data"][0] == player]))
 
 def score(game):
-    return sum([c[1] for c in game["played"]])
+    return len(game["played"])
 
 def have_won(game):
     return (score(game) == MAX_SCORE)
