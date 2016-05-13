@@ -8,7 +8,38 @@ from copy import deepcopy
 
 FULL_SET = [(c, v) for c in COLOURS for v in VALUES]
 CARDS_PER_VALUE = [v for v in VALUES for i in xrange(VALUES_COUNT[v - 1])]
-NUM_ALGORITHMS = 4
+# Include the default random algorithm
+NUM_CLUE_ALGORITHMS = 4
+NUM_DISCARD_ALGORITHMS = 2
+
+# From http://stackoverflow.com/a/44512
+def merge_dicts(d1, d2, merge_fn=lambda x,y:y):
+    """
+    Merges two dictionaries, non-destructively, combining 
+    values on duplicate keys as defined by the optional merge
+    function.  The default behavior replaces the values in d1
+    with corresponding values in d2.  (There is no other generally
+    applicable merge strategy, but often you'll have homogeneous 
+    types in your dicts, so specifying a merge technique can be 
+    valuable.)
+
+    Examples:
+
+    >>> d1
+    {'a': 1, 'c': 3, 'b': 2}
+    >>> merge(d1, d1)
+    {'a': 1, 'c': 3, 'b': 2}
+    >>> merge(d1, d1, lambda x,y: x+y)
+    {'a': 2, 'c': 6, 'b': 4}
+
+    """
+    result = dict(d1)
+    for k,v in d2.iteritems():
+        if k in result:
+            result[k] = merge_fn(result[k], v)
+        else:
+            result[k] = v
+    return result
 
 def get_from(d, key, default):
     if not key in d:
@@ -181,7 +212,8 @@ def play_move(game, current_player, memory, user_args):
     last_clue = get_from(memory, "last_clue", -1)
 
     # A way to try out different algorithms
-    algorithm = get_from(user_args, "algorithm", 0)
+    clue_algorithm = get_from(user_args, "clue_algorithm", 0)
+    discard_algorithm = get_from(user_args, "discard_algorithm", 0)
 
     # Remove any cards I don't have anymore
     old_ids = my_hand.keys()
@@ -201,8 +233,8 @@ def play_move(game, current_player, memory, user_args):
     # may have put a card there.
     # chain.from_iterable flattens all the hands into one list and
     # chain joins the lists into one iterator
-    all_cards = list(chain(chain.from_iterable([h for p, h in game["players"].iteritems() if p != current_player]),
-                      game["played"], game["discarded"]))
+    other_players_cards = list(chain.from_iterable([h for p, h in game["players"].iteritems() if p != current_player]))
+    all_cards = other_players_cards + game["played"] + game["discarded"]
     for (colour, value, id) in all_cards:
         if not id in seen:
             whats_left[colour].remove(value)
@@ -230,12 +262,21 @@ def play_move(game, current_player, memory, user_args):
     for id, possible_cards in my_hand.iteritems():
         l = [c for c in possible_cards if playable(game, c)]
         # Keep a recording of how many are playable
-        if len(l):
-            my_playable[id] = (len(l), len(possible_cards), l)
+        if l:
+            my_playable[id] = (len(l), len(possible_cards), float(len(l)) / len(possible_cards), l)
+
+    my_discardable = {}
+    for id, possible_cards in my_hand.iteritems():
+        l = [c for c in possible_cards if discardable(game, c)]
+        # Keep a recording of how many are discardable
+        if l:
+            my_discardable[id] = (len(l), len(possible_cards), float(len(l)) / len(possible_cards), l)
 
     # Find if any are a dead certain
     definitely_playable = [id for id, data in my_playable.iteritems() if data[0] == data[1]]
     
+    definitely_discardable = [id for id, data in my_discardable.iteritems() if data[0] == data[1]]
+
     if len(definitely_playable):
         #TODO: Don't need to play it!
         #TODO: Probably a bit of smarts in working out which is best to play, e.g. a 1
@@ -253,42 +294,77 @@ def play_move(game, current_player, memory, user_args):
             other_players_playable_cards_f = list(chain.from_iterable(other_players_playable_cards))
 
             if len(other_players_playable_cards_f):
-                if algorithm == 1:
+                if clue_algorithm == 1:
                     # Give a clue to the first playable card
                     (player, card) = other_players_playable_cards_f[0]
                     clue_data = random.choice(card[0:1])
                     m = {"type": "clue", "data": (player, clue_data)}
-                elif algorithm == 2:
+                elif clue_algorithm == 2:
                     # Find the first instance of the lowest value (x[1][1] is the value)
                     (player, card) = sorted(other_players_playable_cards_f, key = lambda x: x[1][1])[0]
                     clue_data = random.choice(card[0:1])
                     m = {"type": "clue", "data": (player, clue_data)}
-                elif algorithm == 3:
+                elif clue_algorithm == 3:
                     # Give a clue to the first player with a playable
                     # card and for the lowest value card in her hand
                     (player, card) = sorted(other_players_playable_cards[0], key = lambda x: x[1][1])[0]
                     clue_data = random.choice(card[0:1])
                     m = {"type": "clue", "data": (player, clue_data)}
-                elif algorithm == 4:
-                    # Find the clue that leads to the highest number
-                    # of definitely playable cards
-                    #TODO: This doesn't take into account anything that the players know already (need to simulate)
-                    for p in player_order:
-                        for c in game["players"][p]:
-                            for clue_data in card[0:1]:
-                                m = {"type": "clue", "data": (p, clue_data)}
-                                def_playable_move.append((m, ))
+#                elif clue_algorithm == 4:
+#                    # Find the clue that leads to the highest number
+#                    # of definitely playable cards
+#                    #TODO: This doesn't take into account anything that the players know already (need to simulate)
+#                    for p in player_order:
+#                        for c in game["players"][p]:
+#                            for clue_data in card[0:1]:
+#                                m = {"type": "clue", "data": (p, clue_data)}
+#                                def_playable_move.append((m, ))
                 else:
-                    # Covers the default algorithm 0
+                    # Covers the default clue_algorithm 0
                     m = create_random_clue(game, current_player)
             else:
                 m = create_random_clue(game, current_player)
 
         else:
             # Definitely have to discard
-            #TODO: Discard only those that are not needed anymore
-            #TODO: Don't do a random discard
-            m = {"type": "discard", "data": random.choice(hand)}
+            if definitely_discardable:
+                card = definitely_discardable[0]
+            else:
+                if discard_algorithm == 1:
+                    # Calculate the least likely to be playable
+                    prob_playable = {}
+                    for id, values in my_playable.iteritems():
+                        # Initialise to starting probability
+                        prob_playable[id] = values[2]
+                        # The card in my hand might have multiple playable
+                        # possibilities
+                        for possible_card in values[3]:
+                            prob_playable[id] = prob_playable[id] * pow(0.9, hand_has(other_players_cards, possible_card))
+
+                    # Calculate the most likely to be discardable
+                    prob_discardable = {}
+                    for id, values in my_discardable.iteritems():
+                        # Initialise to starting probability
+                        prob_discardable[id] = values[2]
+                        # The card in my hand might have multiple discardable
+                        # possibilities
+                        for possible_card in values[3]:
+                            prob_discardable[id] = prob_discardable[id] * pow(0.9, hand_has(other_players_cards, possible_card))
+
+                    # Multiple them together
+                    total_probs = merge_dicts(prob_playable, prob_discardable, merge_fn = lambda x,y: x * y)
+
+                    # Then get the minimum
+                    total_probs_sorted = sorted(total_probs.iteritems(), key = itemgetter(1))
+
+                    if total_probs_sorted:
+                        card = total_probs_sorted[0][0]
+                    else:
+                        card = random.choice(hand)
+                else:
+                    card = random.choice(hand)
+
+            m = {"type": "discard", "data": card}
 
     # Returning the move here instead of in the code above makes it
     # easier to debug
@@ -310,8 +386,10 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("-f", type = str, choices = ["default", "ai"],
                         default = "default", help = "Which move function to use.")
-    parser.add_argument("-a", type = int, default = 0,
-                        help = "Which algorithm to use of the move function. Default is to permute all.")
+    parser.add_argument("--clue-algorithm", type = int, default = -1,
+                        help = "Which clue algorithm to use of the move function. Default is to permute all.")
+    parser.add_argument("--discard-algorithm", type = int, default = -1,
+                        help = "Which discard algorithm to use of the move function. Default is to permute all.")
     parser.add_argument("-n", type = int, default = 1,
                         help = "How many times to play.")
     parser.add_argument("-p", type = int, default = 3, choices = [2, 3, 4, 5],
@@ -323,12 +401,19 @@ if __name__ == "__main__":
     if args.f == "ai":
         play(args.n, args.p, play_move_ai, {}, load_state = args.r, obfuscate_game = False)
     else:
-        if args.a == 0:
-            # Iterate the algorithms to compare
-            for i in range(NUM_ALGORITHMS):
-                print "For algorithm %0d:" % i
-                play(args.n, args.p, play_move, {"algorithm": i}, load_state = args.r)
-                print "-" * 80
+        if args.clue_algorithm == -1:
+            clue_algorithms_to_run = range(NUM_CLUE_ALGORITHMS)
         else:
-                print "For algorithm %0d:" % args.a
-                play(args.n, args.p, play_move, {"algorithm": args.a}, load_state = args.r)
+            clue_algorithms_to_run = [args.clue_algorithm]
+
+        if args.discard_algorithm == -1:
+            discard_algorithms_to_run = range(NUM_DISCARD_ALGORITHMS)
+        else:
+            discard_algorithms_to_run = [args.discard_algorithm]
+        
+        # Iterate the algorithms to compare
+        for ca in clue_algorithms_to_run:
+            for da in discard_algorithms_to_run:
+                print "For clue algorithm %0d and discard algorithm %0d:" % (ca, da)
+                play(args.n, args.p, play_move, {"clue_algorithm": ca, "discard_algorithm": da}, load_state = args.r)
+                print "-" * 80
