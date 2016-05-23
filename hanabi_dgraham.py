@@ -4,7 +4,8 @@ from operator import itemgetter
 from simpleai.search import SearchProblem, breadth_first
 from simpleai.search.viewers import *
 from copy import deepcopy
-
+from tabulate import tabulate
+import string
 
 FULL_SET = [(c, v) for c in COLOURS for v in VALUES]
 CARDS_PER_VALUE = [v for v in VALUES for i in xrange(VALUES_COUNT[v])]
@@ -15,12 +16,12 @@ NUM_DISCARD_ALGORITHMS = 2
 # From http://stackoverflow.com/a/44512
 def merge_dicts(d1, d2, merge_fn=lambda x,y:y):
     """
-    Merges two dictionaries, non-destructively, combining 
+    Merges two dictionaries, non-destructively, combining
     values on duplicate keys as defined by the optional merge
     function.  The default behavior replaces the values in d1
     with corresponding values in d2.  (There is no other generally
-    applicable merge strategy, but often you'll have homogeneous 
-    types in your dicts, so specifying a merge technique can be 
+    applicable merge strategy, but often you'll have homogeneous
+    types in your dicts, so specifying a merge technique can be
     valuable.)
 
     Examples:
@@ -65,7 +66,7 @@ def prune(my_hand, ids, colour_or_value):
             if isinstance(colour_or_value, str):
                 my_hand[id] = [c for c in my_hand[id] if c[0] == colour_or_value]
             else:
-                my_hand[id] = [c for c in my_hand[id] if c[1] == colour_or_value]                    
+                my_hand[id] = [c for c in my_hand[id] if c[1] == colour_or_value]
         else:
             # Else if the clue is not for this card, then we know it
             # is not the indicated colour or value
@@ -111,6 +112,73 @@ def build_possible_hands(game, current_player):
             prune(hand_possibilities[p], clue_data[2], clue_data[1])
 
     return hand_possibilities
+
+def card_possibilities_as_table(card_list):
+    table = []
+    for v in VALUES:
+        row = []
+        for c in COLOURS:
+            if (c, v) in card_list:
+                row.append("X")
+            else:
+                row.append("")
+        table.append(row)
+    return table
+
+def print_hand_possibilities(hand):
+    table = []
+    # Put in the rows
+    for v in VALUES:
+        table.append([v])
+
+    # Append the tables for each card in the hand
+    for id, card_list in hand.iteritems():
+        subtable = card_possibilities_as_table(card_list)
+        for i in range(VALUES[-1]):
+            table[i].extend(subtable[i])
+
+    # Put in the header for each subtable
+    header = ["Value"] + ([COLOURS_SHORT[c] for c in COLOURS] * len(hand.keys()))
+
+    # Add a dummy header that we will shift around later
+    dummy_header = [" "] * len(header)
+
+    # Make sure the order of the header matches the row data
+    table_str = tabulate([header] + table,
+                         headers = dummy_header,
+                         tablefmt = "grid")
+
+    table_list = table_str.splitlines()
+
+    # Swap the header underline
+    header_line = table_list[2]
+    tmp_line = table_list[4]
+    table_list[2] = tmp_line
+    table_list[4] = header_line
+
+    # Merge the header row for each subtable
+    cols = [pos for pos, ch in enumerate(table_list[1]) if ch == "|"]
+
+    start_index = range(1, len(cols) - 1, len(COLOURS))
+
+    for si, id in enumerate(hand.keys()):
+        i = start_index[si]
+        current_col = cols[i]
+        next_col = cols[i + len(COLOURS)]
+        # Strings are immutable so you can't assign a slice to another
+        # string
+        table_list[1] = table_list[1][:current_col + 1] + string.center(str(id), next_col - 1 - current_col) + table_list[1][next_col:]
+
+    # Add a double vertical line in between cards
+    cols = [pos for pos, ch in enumerate(table_list[1]) if ch == "|"]
+
+    # Because we modify the table as we go the column position will
+    # change each time
+    for col_offset, col_num in enumerate(cols[2:-1]):
+        for row_num, row in enumerate(table_list):
+            table_list[row_num] = table_list[row_num][:col_num + col_offset + 1] + table_list[row_num][col_num + col_offset] + table_list[row_num][col_num + col_offset + 1:]
+
+    print "\n".join(table_list)
 
 def all_moves(game, current_player):
     """Return all moves for the current player."""
@@ -205,7 +273,7 @@ def play_move(game, current_player, memory, user_args):
     all_hands = build_possible_hands(game, game["current_player"])
 
     my_hand = all_hands[current_player]
-    
+
     # A way to try out different algorithms
     clue_algorithm = get_from(user_args, "clue_algorithm", 0)
     discard_algorithm = get_from(user_args, "discard_algorithm", 0)
@@ -231,7 +299,7 @@ def play_move(game, current_player, memory, user_args):
     # Find if any are a dead certain
     definitely_playable = [id for id, data in my_playable.iteritems() \
                            if (data[0] == data[1]) or (id in cards_given_clue(game, current_player))]
-    
+
     definitely_discardable = [id for id, data in my_discardable.iteritems() if data[0] == data[1]]
 
     if len(definitely_playable):
@@ -368,7 +436,7 @@ if __name__ == "__main__":
             discard_algorithms_to_run = range(NUM_DISCARD_ALGORITHMS)
         else:
             discard_algorithms_to_run = [args.discard_algorithm]
-        
+
         # Iterate the algorithms to compare
         for ca in clue_algorithms_to_run:
             for da in discard_algorithms_to_run:
