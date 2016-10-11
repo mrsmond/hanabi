@@ -125,14 +125,14 @@ def card_possibilities_as_table(card_list):
         table.append(row)
     return table
 
-def print_hand_possibilities(hand):
+def print_hand_possibilities(hand, prob_playable, prob_discardable):
     table = []
     # Put in the rows
     for v in VALUES:
         table.append([v])
 
     # Append the tables for each card in the hand
-    for id, card_list in hand.iteritems():
+    for card_list in hand.values():
         subtable = card_possibilities_as_table(card_list)
         for i in range(VALUES[-1]):
             table[i].extend(subtable[i])
@@ -160,14 +160,22 @@ def print_hand_possibilities(hand):
     cols = [pos for pos, ch in enumerate(table_list[1]) if ch == "|"]
 
     start_index = range(1, len(cols) - 1, len(COLOURS))
-
+    
     for si, id in enumerate(hand.keys()):
         i = start_index[si]
         current_col = cols[i]
         next_col = cols[i + len(COLOURS)]
+        header_str = str(id)
+
+        # Add the prob playable and discardable to the the merged
+        # header cell for each card
+        header_str = "{} (Pp={:0.3f}, Pd={:0.3f})".format(id,
+                                                          prob_playable[id][2] if id in prob_playable else 0.0,
+                                                          prob_discardable[id][2] if id in prob_discardable else 0.0)
+            
         # Strings are immutable so you can't assign a slice to another
         # string
-        table_list[1] = table_list[1][:current_col + 1] + string.center(str(id), next_col - 1 - current_col) + table_list[1][next_col:]
+        table_list[1] = table_list[1][:current_col + 1] + string.center(header_str, next_col - 1 - current_col) + table_list[1][next_col:]
 
     # Add a double vertical line in between cards
     cols = [pos for pos, ch in enumerate(table_list[1]) if ch == "|"]
